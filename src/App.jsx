@@ -1,31 +1,27 @@
-import { useState, useEffect } from 'react'
-import { Layout, Button, message, ConfigProvider } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { useState, useEffect, useMemo } from 'react'
+import { Layout, Button, message, ConfigProvider, theme, Progress, Space, Typography, Switch } from 'antd'
+import { PlusOutlined, CheckCircleOutlined, DeleteOutlined, BulbOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import TaskTable from './components/TaskTable'
 import TaskForm from './components/TaskForm'
 import TaskFilter from './components/TaskFilter'
 import './App.css'
 
-const { Header, Content } = Layout
-
+const { Header, Content, Footer } = Layout
+const { Title, Text } = Typography
 const STORAGE_KEY = 'task-manager-tasks'
 
-function loadTasks() {
-  try {
+export default function App() {
+  const [tasks, setTasks] = useState(() => {
     const data = localStorage.getItem(STORAGE_KEY)
     return data ? JSON.parse(data) : []
-  } catch {
-    return []
-  }
-}
+  })
+  
+  // Состояние темы (светлая/темная)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark'
+  })
 
-function saveTasks(tasks) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
-}
-
-export default function App() {
-  const [tasks, setTasks] = useState(loadTasks)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [filterStatus, setFilterStatus] = useState('all')
@@ -33,114 +29,121 @@ export default function App() {
   const [messageApi, contextHolder] = message.useMessage()
 
   useEffect(() => {
-    saveTasks(tasks)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks))
   }, [tasks])
 
-  const addTask = (values) => {
-    const newTask = {
-      id: Date.now().toString(),
-      title: values.title,
-      description: values.description || '',
-      priority: values.priority,
-      deadline: values.deadline ? values.deadline.format('YYYY-MM-DD') : null,
-      completed: false,
-      createdAt: dayjs().format('YYYY-MM-DD HH:mm'),
+  useEffect(() => {
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light')
+  }, [isDarkMode])
+
+  const handleTaskAction = (values) => {
+    if (editingTask) {
+      setTasks(prev => prev.map(t => t.id === editingTask.id ? { ...t, ...values, deadline: values.deadline?.format('YYYY-MM-DD') } : t))
+      messageApi.success('Задача обновлена')
+    } else {
+      const newTask = {
+        ...values,
+        id: Date.now().toString(),
+        completed: false,
+        createdAt: dayjs().format('YYYY-MM-DD HH:mm'),
+        deadline: values.deadline?.format('YYYY-MM-DD')
+      }
+      setTasks(prev => [newTask, ...prev])
+      messageApi.success('Задача создана')
     }
-    setTasks((prev) => [newTask, ...prev])
     setIsModalOpen(false)
-    messageApi.success('Задача добавлена')
   }
 
-  const updateTask = (values) => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === editingTask.id
-          ? {
-              ...task,
-              title: values.title,
-              description: values.description || '',
-              priority: values.priority,
-              deadline: values.deadline ? values.deadline.format('YYYY-MM-DD') : null,
-            }
-          : task
-      )
-    )
-    setEditingTask(null)
-    setIsModalOpen(false)
-    messageApi.success('Задача обновлена')
+  const clearCompleted = () => {
+    setTasks(prev => prev.filter(t => !t.completed))
+    messageApi.success('Выполненные задачи удалены')
   }
 
-  const deleteTask = (id) => {
-    setTasks((prev) => prev.filter((task) => task.id !== id))
-    messageApi.success('Задача удалена')
-  }
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(t => {
+      const matchesStatus = filterStatus === 'all' || (filterStatus === 'completed' ? t.completed : !t.completed)
+      const matchesSearch = t.title.toLowerCase().includes(searchText.toLowerCase())
+      return matchesStatus && matchesSearch
+    })
+  }, [tasks, filterStatus, searchText])
 
-  const toggleComplete = (id) => {
-    setTasks((prev) =>
-      prev.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    )
-  }
-
-  const openAddModal = () => {
-    setEditingTask(null)
-    setIsModalOpen(true)
-  }
-
-  const openEditModal = (task) => {
-    setEditingTask(task)
-    setIsModalOpen(true)
-  }
-
-  const filteredTasks = tasks.filter((task) => {
-    if (filterStatus === 'active' && task.completed) return false
-    if (filterStatus === 'completed' && !task.completed) return false
-    if (searchText && !task.title.toLowerCase().includes(searchText.toLowerCase())) return false
-    return true
-  })
+  const completionRate = tasks.length ? Math.round((tasks.filter(t => t.completed).length / tasks.length) * 100) : 0
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#1677ff',
-        },
+    <ConfigProvider 
+      theme={{ 
+        algorithm: isDarkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
+        token: { borderRadius: 8, colorPrimary: '#52c41a' } 
       }}
     >
       {contextHolder}
-      <Layout className="app-layout">
+      <Layout className={`app-layout ${isDarkMode ? 'dark-mode' : ''}`}>
         <Header className="app-header">
-          <h1 className="app-title">Task Manager</h1>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openAddModal}>
-            Добавить задачу
-          </Button>
+          <Space size="middle">
+            <CheckCircleOutlined className="header-icon" />
+            <Title level={3} className="app-title">TaskFlow</Title>
+          </Space>
+          
+          <Space size="large">
+            <Space>
+               <BulbOutlined />
+               <Switch 
+                 checked={isDarkMode} 
+                 onChange={(val) => setIsDarkMode(val)} 
+                 size="small"
+               />
+            </Space>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditingTask(null); setIsModalOpen(true); }}>
+              Задача
+            </Button>
+          </Space>
         </Header>
+
         <Content className="app-content">
-          <TaskFilter
-            filterStatus={filterStatus}
-            onFilterChange={setFilterStatus}
-            searchText={searchText}
-            onSearchChange={setSearchText}
-            totalTasks={tasks.length}
-            completedTasks={tasks.filter((t) => t.completed).length}
+          <div className="stats-card">
+            <div className="stats-header">
+              <Text strong>Ваш прогресс</Text>
+              <Button 
+                danger 
+                type="text" 
+                size="small" 
+                icon={<DeleteOutlined />} 
+                onClick={clearCompleted}
+                disabled={!tasks.some(t => t.completed)}
+              >
+                Очистить выполненные
+              </Button>
+            </div>
+            <Progress percent={completionRate} strokeColor="#52c41a" />
+          </div>
+
+          <TaskFilter 
+            filterStatus={filterStatus} 
+            onFilterChange={setFilterStatus} 
+            searchText={searchText} 
+            onSearchChange={setSearchText} 
           />
-          <TaskTable
-            tasks={filteredTasks}
-            onEdit={openEditModal}
-            onDelete={deleteTask}
-            onToggleComplete={toggleComplete}
-          />
-          <TaskForm
-            open={isModalOpen}
-            onCancel={() => {
-              setIsModalOpen(false)
-              setEditingTask(null)
-            }}
-            onSubmit={editingTask ? updateTask : addTask}
-            initialValues={editingTask}
+          
+          <TaskTable 
+            tasks={filteredTasks} 
+            onEdit={(task) => { setEditingTask(task); setIsModalOpen(true); }}
+            onDelete={(id) => setTasks(prev => prev.filter(t => t.id !== id))}
+            onToggleComplete={(id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))}
           />
         </Content>
+
+        <Footer className="app-footer">
+          <Text type="secondary">TaskFlow project Created for Coursework</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: '12px' }}>React + Ant Design + Day.js</Text>
+        </Footer>
+
+        <TaskForm 
+          open={isModalOpen} 
+          onCancel={() => setIsModalOpen(false)} 
+          onSubmit={handleTaskAction} 
+          initialValues={editingTask} 
+        />
       </Layout>
     </ConfigProvider>
   )

@@ -12,9 +12,7 @@ export default function TaskForm({ open, onCancel, onSubmit, initialValues }) {
     if (open) {
       if (initialValues) {
         form.setFieldsValue({
-          title: initialValues.title,
-          description: initialValues.description,
-          priority: initialValues.priority,
+          ...initialValues,
           deadline: initialValues.deadline ? dayjs(initialValues.deadline) : null,
         })
       } else {
@@ -35,40 +33,44 @@ export default function TaskForm({ open, onCancel, onSubmit, initialValues }) {
       title={isEditing ? 'Редактировать задачу' : 'Новая задача'}
       open={open}
       onOk={handleOk}
-      onCancel={() => {
-        form.resetFields()
-        onCancel()
-      }}
-      okText={isEditing ? 'Сохранить' : 'Добавить'}
-      cancelText="Отмена"
+      onCancel={onCancel}
+      okText={isEditing ? 'Сохранить' : 'Создать'}
       destroyOnClose
     >
-      <Form form={form} layout="vertical" initialValues={{ priority: 'medium' }}>
+      <Form form={form} layout="vertical" initialValues={{ priority: 'medium', category: 'other' }}>
         <Form.Item
           name="title"
           label="Название"
-          rules={[{ required: true, message: 'Введите название задачи' }]}
+          rules={[{ required: true, message: 'Введите название' }]}
         >
-          <Input placeholder="Введите название задачи" />
+          <Input placeholder="Что нужно сделать?" />
         </Form.Item>
-        <Form.Item name="description" label="Описание">
-          <TextArea rows={3} placeholder="Описание задачи (необязательно)" />
-        </Form.Item>
-        <Form.Item
-          name="priority"
-          label="Приоритет"
-          rules={[{ required: true, message: 'Выберите приоритет' }]}
-        >
-          <Select
-            options={[
-              { value: 'high', label: 'Высокий' },
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <Form.Item name="category" label="Категория">
+            <Select options={[
+              { value: 'work', label: 'Работа' },
+              { value: 'study', label: 'Учеба' },
+              { value: 'personal', label: 'Личное' },
+              { value: 'other', label: 'Другое' },
+            ]} />
+          </Form.Item>
+
+          <Form.Item name="priority" label="Приоритет">
+            <Select options={[
+              { value: 'high', label: 'Высокий 🔥' },
               { value: 'medium', label: 'Средний' },
               { value: 'low', label: 'Низкий' },
-            ]}
-          />
-        </Form.Item>
+            ]} />
+          </Form.Item>
+        </div>
+
         <Form.Item name="deadline" label="Дедлайн">
-          <DatePicker style={{ width: '100%' }} placeholder="Выберите дату" />
+          <DatePicker style={{ width: '100%' }} />
+        </Form.Item>
+
+        <Form.Item name="description" label="Описание">
+          <TextArea rows={2} placeholder="Дополнительные детали..." />
         </Form.Item>
       </Form>
     </Modal>

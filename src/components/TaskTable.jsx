@@ -1,11 +1,20 @@
-import { Table, Tag, Button, Popconfirm, Checkbox, Space, Tooltip } from 'antd'
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { Table, Tag, Button, Popconfirm, Checkbox, Space, Typography, Tooltip } from 'antd'
+import { EditOutlined, DeleteOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
+const { Text } = Typography
+
 const priorityConfig = {
-  high: { color: 'red', label: 'Высокий' },
-  medium: { color: 'orange', label: 'Средний' },
-  low: { color: 'green', label: 'Низкий' },
+  high: { color: '#ff4d4f', label: 'Высокий', weight: 3 },
+  medium: { color: '#faad14', label: 'Средний', weight: 2 },
+  low: { color: '#52c41a', label: 'Низкий', weight: 1 },
+}
+
+const categoryConfig = {
+  work: { label: 'Работа', color: 'blue' },
+  personal: { label: 'Личное', color: 'purple' },
+  study: { label: 'Учеба', color: 'cyan' },
+  other: { label: 'Другое', color: 'default' },
 }
 
 export default function TaskTable({ tasks, onEdit, onDelete, onToggleComplete }) {
@@ -13,73 +22,54 @@ export default function TaskTable({ tasks, onEdit, onDelete, onToggleComplete })
     {
       title: 'Статус',
       dataIndex: 'completed',
-      key: 'completed',
-      width: 70,
-      align: 'center',
-      render: (completed, record) => (
-        <Checkbox checked={completed} onChange={() => onToggleComplete(record.id)} />
+      width: 80,
+      sorter: (a, b) => a.completed - b.completed,
+      render: (done, record) => (
+        <Checkbox checked={done} onChange={() => onToggleComplete(record.id)} />
       ),
     },
     {
-      title: 'Название',
+      title: 'Задача',
       dataIndex: 'title',
-      key: 'title',
-      ellipsis: true,
+      sorter: (a, b) => a.title.localeCompare(b.title),
       render: (text, record) => (
-        <Tooltip title={record.description || undefined}>
-          <span>{text}</span>
-        </Tooltip>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <Text delete={record.completed} strong={!record.completed}>{text}</Text>
+          <Tag color={categoryConfig[record.category]?.color} style={{ width: 'fit-content', fontSize: '10px', marginTop: '4px' }}>
+            {categoryConfig[record.category]?.label}
+          </Tag>
+        </div>
       ),
     },
     {
       title: 'Приоритет',
       dataIndex: 'priority',
-      key: 'priority',
       width: 120,
-      align: 'center',
-      render: (priority) => {
-        const config = priorityConfig[priority]
-        return config ? <Tag color={config.color}>{config.label}</Tag> : null
-      },
+      sorter: (a, b) => priorityConfig[a.priority].weight - priorityConfig[b.priority].weight,
+      render: (p) => <Tag color={priorityConfig[p].color}>{priorityConfig[p].label}</Tag>,
     },
     {
       title: 'Дедлайн',
       dataIndex: 'deadline',
-      key: 'deadline',
-      width: 130,
-      align: 'center',
-      render: (deadline) => {
-        if (!deadline) return '—'
-        const isOverdue = dayjs(deadline).isBefore(dayjs(), 'day')
-        return <span style={isOverdue ? { color: 'red' } : undefined}>{deadline}</span>
+      width: 150,
+      sorter: (a, b) => dayjs(a.deadline || '9999-12-31').unix() - dayjs(b.deadline || '9999-12-31').unix(),
+      render: (date, record) => {
+        if (!date) return <Text type="secondary">—</Text>
+        const isOverdue = dayjs(date).isBefore(dayjs(), 'day') && !record.completed
+        return (
+          <Tag icon={<ClockCircleOutlined />} color={isOverdue ? 'error' : 'default'}>
+            {dayjs(date).format('DD.MM.YY')}
+          </Tag>
+        )
       },
     },
     {
-      title: 'Создана',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 150,
-      align: 'center',
-    },
-    {
       title: 'Действия',
-      key: 'actions',
-      width: 110,
-      align: 'center',
+      width: 100,
       render: (_, record) => (
         <Space>
-          <Button
-            type="text"
-            icon={<EditOutlined />}
-            onClick={() => onEdit(record)}
-          />
-          <Popconfirm
-            title="Удалить задачу?"
-            description="Это действие нельзя отменить"
-            onConfirm={() => onDelete(record.id)}
-            okText="Удалить"
-            cancelText="Отмена"
-          >
+          <Button type="text" icon={<EditOutlined />} onClick={() => onEdit(record)} />
+          <Popconfirm title="Удалить?" onConfirm={() => onDelete(record.id)} okText="Да" cancelText="Нет">
             <Button type="text" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
@@ -88,13 +78,12 @@ export default function TaskTable({ tasks, onEdit, onDelete, onToggleComplete })
   ]
 
   return (
-    <Table
-      dataSource={tasks}
-      columns={columns}
-      rowKey="id"
-      pagination={{ pageSize: 10 }}
-      locale={{ emptyText: 'Нет задач' }}
-      rowClassName={(record) => (record.completed ? 'task-completed' : '')}
+    <Table 
+      dataSource={tasks} 
+      columns={columns} 
+      rowKey="id" 
+      pagination={{ pageSize: 7 }}
+      scroll={{ x: 600 }}
     />
   )
 }
