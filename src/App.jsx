@@ -122,6 +122,8 @@ export default function App() {
             onFilterChange={setFilterStatus} 
             searchText={searchText} 
             onSearchChange={setSearchText} 
+            totalTasks={tasks.length}
+            completedTasks={tasks.filter((t) => t.completed).length}
           />
           
           <TaskTable 

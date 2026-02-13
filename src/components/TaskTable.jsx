@@ -31,12 +31,46 @@ export default function TaskTable({ tasks, onEdit, onDelete, onToggleComplete })
     {
       title: 'Задача',
       dataIndex: 'title',
+      key: 'title',
       sorter: (a, b) => a.title.localeCompare(b.title),
       render: (text, record) => (
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <Text delete={record.completed} strong={!record.completed}>{text}</Text>
-          <Tag color={categoryConfig[record.category]?.color} style={{ width: 'fit-content', fontSize: '10px', marginTop: '4px' }}>
-            {categoryConfig[record.category]?.label}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 0' }}>
+          {/* Название задачи */}
+          <Text 
+            delete={record.completed} 
+            strong={!record.completed} 
+            style={{ fontSize: '15px', display: 'block' }}
+          >
+            {text}
+          </Text>
+
+          {/* Описание задачи (показывается только если оно заполнено) */}
+          {record.description && (
+            <Text 
+              type="secondary" 
+              style={{ 
+                fontSize: '12px', 
+                lineHeight: '1.4',
+                maxWidth: '300px', // чтобы текст не растягивал таблицу слишком сильно
+                marginBottom: '4px'
+              }}
+            >
+              {record.description}
+            </Text>
+          )}
+
+          {/* Тег категории */}
+          <Tag 
+            color={categoryConfig[record.category]?.color || 'default'} 
+            style={{ 
+              width: 'fit-content', 
+              fontSize: '10px', 
+              lineHeight: '16px',
+              borderRadius: '4px',
+              marginTop: '2px'
+            }}
+          >
+            {categoryConfig[record.category]?.label || 'Другое'}
           </Tag>
         </div>
       ),
@@ -84,6 +118,14 @@ export default function TaskTable({ tasks, onEdit, onDelete, onToggleComplete })
       rowKey="id" 
       pagination={{ pageSize: 7 }}
       scroll={{ x: 600 }}
+      expandable={{
+        expandedRowRender: (record) => (
+          <p style={{ margin: 0, paddingLeft: '50px', color: 'gray' }}>
+            <strong>Описание:</strong> {record.description || 'Нет описания для этой задачи'}
+          </p>
+        ),
+        rowExpandable: (record) => !!record.description, // разворачивать только если есть описание
+      }}
     />
   )
 }
